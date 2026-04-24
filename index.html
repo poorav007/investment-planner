@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+v<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -462,6 +462,46 @@
   .ref-table tr:last-child td { border-bottom: none; }
   .ref-table td:first-child { font-weight: 500; color: var(--ink); }
 
+  /* CHART SECTION */
+  .chart-tabs {
+    display: flex; gap: 0;
+    border-bottom: 0.5px solid var(--paper-3);
+    background: var(--paper);
+  }
+  .chart-tab {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    padding: 10px 18px;
+    border: none; background: none;
+    color: var(--ink-3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -0.5px;
+    transition: all .15s;
+    letter-spacing: .02em;
+  }
+  .chart-tab:hover { color: var(--ink); }
+  .chart-tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+  .chart-panel { display: none; padding: 1.5rem; }
+  .chart-panel.active { display: block; }
+  canvas.chart-canvas { width: 100%; display: block; }
+  .chart-legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-top: 1rem;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--ink-2);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .chart-note {
+    font-size: 11px; color: var(--ink-3);
+    margin-top: 1rem; font-style: italic;
+  }
+
   /* FOOTER */
   footer {
     text-align: center;
@@ -798,60 +838,416 @@ function calculate() {
       </div>`;
   });
 
-  // Reference table
+  // Reference table + charts
   html += `
-    <div class="ref-card">
+    <div class="ref-card" style="margin-top:1.5rem">
       <div class="ref-head">
         Investment options guide
         <span class="ref-tag">Reference</span>
       </div>
-      <table class="ref-table">
-        <thead>
-          <tr>
-            <th>Time horizon</th>
-            <th>Suggested instrument</th>
-            <th>Typical return</th>
-            <th>Risk</th>
-            <th>Taxation</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>0–90 days</td>
-            <td>Savings A/c / Sweep FD</td>
-            <td>6%</td>
-            <td><span class="bucket-tag bucket-short" style="font-size:10px">Very Low</span></td>
-            <td>Taxable as per slab</td>
-          </tr>
-          <tr>
-            <td>90 days – 3 years</td>
-            <td>Liquid Funds / Low-Duration Debt Fund</td>
-            <td>7.5%</td>
-            <td><span class="bucket-tag bucket-mid" style="font-size:10px">Low–Moderate</span></td>
-            <td>Taxable as per slab</td>
-          </tr>
-          <tr>
-            <td>More than 3 years</td>
-            <td>Conservative Hybrid / Equity Savings Funds / AAA Corp Bond</td>
-            <td>10%</td>
-            <td><span class="bucket-tag bucket-long" style="font-size:10px">Moderate–High</span></td>
-            <td>LTCG 12.5% over ₹1.25L; STCG 20%</td>
-          </tr>
-          <tr>
-            <td>3+ years (equity focus)</td>
-            <td>Arbitrage Mutual Funds</td>
-            <td>7.5%</td>
-            <td><span class="bucket-tag bucket-mid" style="font-size:10px">Very Low</span></td>
-            <td>LTCG 12.5% over ₹1.25L; STCG 20%</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="chart-tabs">
+        <button class="chart-tab active" onclick="switchTab('scatter')">Risk vs Return</button>
+        <button class="chart-tab" onclick="switchTab('bar-return')">Returns Comparison</button>
+        <button class="chart-tab" onclick="switchTab('bar-risk')">Risk Comparison</button>
+        <button class="chart-tab" onclick="switchTab('table')">Full Table</button>
+      </div>
+
+      <div class="chart-panel active" id="panel-scatter">
+        <canvas class="chart-canvas" id="chart-scatter" height="340"></canvas>
+        <div class="chart-legend" id="legend-scatter"></div>
+        <p class="chart-note">Bubble size = investment horizon (years). Hover over a bubble to see details.</p>
+      </div>
+
+      <div class="chart-panel" id="panel-bar-return">
+        <canvas class="chart-canvas" id="chart-bar-return" height="300"></canvas>
+        <div class="chart-legend" id="legend-bar-return"></div>
+        <p class="chart-note">Typical annual return shown. Actual returns may vary based on market conditions.</p>
+      </div>
+
+      <div class="chart-panel" id="panel-bar-risk">
+        <canvas class="chart-canvas" id="chart-bar-risk" height="300"></canvas>
+        <div class="chart-legend" id="legend-bar-risk"></div>
+        <p class="chart-note">Risk score is on a scale of 1 (Very Low) to 5 (Very High). Lower is safer.</p>
+      </div>
+
+      <div class="chart-panel" id="panel-table">
+        <table class="ref-table">
+          <thead>
+            <tr>
+              <th>Time horizon</th>
+              <th>Suggested instrument</th>
+              <th>Typical return</th>
+              <th>Risk</th>
+              <th>Taxation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0–90 days</td>
+              <td>Savings A/c / Sweep FD</td>
+              <td>6%</td>
+              <td><span class="bucket-tag bucket-short" style="font-size:10px">Very Low</span></td>
+              <td>Taxable as per slab</td>
+            </tr>
+            <tr>
+              <td>90 days – 3 years</td>
+              <td>Liquid Funds / Low-Duration Debt Fund</td>
+              <td>7.5%</td>
+              <td><span class="bucket-tag bucket-mid" style="font-size:10px">Low–Moderate</span></td>
+              <td>Taxable as per slab</td>
+            </tr>
+            <tr>
+              <td>More than 3 years</td>
+              <td>Conservative Hybrid / Equity Savings / AAA Corp Bond</td>
+              <td>10%</td>
+              <td><span class="bucket-tag bucket-long" style="font-size:10px">Moderate–High</span></td>
+              <td>LTCG 12.5% over ₹1.25L; STCG 20%</td>
+            </tr>
+            <tr>
+              <td>3+ years (equity focus)</td>
+              <td>Arbitrage Mutual Funds</td>
+              <td>7.5%</td>
+              <td><span class="bucket-tag bucket-mid" style="font-size:10px">Very Low</span></td>
+              <td>LTCG 12.5% over ₹1.25L; STCG 20%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>`;
+
+  setTimeout(() => initCharts(), 80);
 
   const area = document.getElementById('results-area');
   area.innerHTML = html;
   area.style.display = 'block';
   setTimeout(() => area.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+// ── INVESTMENT OPTIONS DATA ──────────────────────────────────────────
+const INSTRUMENTS = [
+  { name: 'Savings A/c / FD',         shortName: 'FD',              ret: 6.0,  risk: 1, horizon: 0.25, color: '#2d6a4f', textColor: '#fff' },
+  { name: 'Liquid Funds',              shortName: 'Liquid',          ret: 7.0,  risk: 2, horizon: 1.5,  color: '#1a3d6e', textColor: '#fff' },
+  { name: 'Low-Duration Debt Fund',    shortName: 'Low-Dur Debt',    ret: 7.5,  risk: 2, horizon: 2,    color: '#2655a0', textColor: '#fff' },
+  { name: 'Arbitrage Mutual Funds',    shortName: 'Arbitrage',       ret: 7.5,  risk: 1, horizon: 3,    color: '#5a8f3c', textColor: '#fff' },
+  { name: 'AAA Corp Bond Fund',        shortName: 'Corp Bond',       ret: 8.5,  risk: 2, horizon: 3,    color: '#c8a84b', textColor: '#1a1a1a' },
+  { name: 'Conservative Hybrid Fund',  shortName: 'Cons. Hybrid',    ret: 9.0,  risk: 3, horizon: 3,    color: '#b07d30', textColor: '#fff' },
+  { name: 'Equity Savings Fund',       shortName: 'Eq. Savings',     ret: 10.0, risk: 3, horizon: 5,    color: '#92480c', textColor: '#fff' },
+  { name: 'TMF / Target Maturity Fund',shortName: 'TMF',             ret: 7.8,  risk: 2, horizon: 4,    color: '#4a6fa5', textColor: '#fff' },
+];
+
+const RISK_LABELS = { 1: 'Very Low', 2: 'Low–Moderate', 3: 'Moderate–High', 4: 'High', 5: 'Very High' };
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+  if (id === 'scatter') drawScatter();
+  if (id === 'bar-return') drawBarReturn();
+  if (id === 'bar-risk') drawBarRisk();
+}
+
+// ── DPI HELPER ───────────────────────────────────────────────────────
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width || canvas.parentElement.clientWidth - 48;
+  const h = canvas.height; // CSS height in px
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w, h };
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ── SCATTER: Risk (X) vs Return (Y), bubble = horizon ───────────────
+function drawScatter() {
+  const canvas = document.getElementById('chart-scatter');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  const pad = { top: 30, right: 30, bottom: 50, left: 55 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  const minRisk = 0.5, maxRisk = 3.8;
+  const minRet = 5, maxRet = 11.5;
+
+  function sx(risk) { return pad.left + ((risk - minRisk) / (maxRisk - minRisk)) * cw; }
+  function sy(ret)  { return pad.top + ch - ((ret - minRet) / (maxRet - minRet)) * ch; }
+  function br(h)    { return 10 + h * 3.5; }
+
+  // Grid
+  ctx.strokeStyle = '#e4ddd0';
+  ctx.lineWidth = 0.5;
+  for (let r = 5; r <= 11; r++) {
+    const y = sy(r);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#8a8a8a';
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(r + '%', pad.left - 8, y + 3.5);
+  }
+  for (let r = 1; r <= 3; r++) {
+    const x = sx(r);
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); ctx.stroke();
+    ctx.fillStyle = '#8a8a8a';
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(RISK_LABELS[r], x, h - pad.bottom + 16);
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#4a4a4a';
+  ctx.font = '11px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('← Lower Risk · Higher Risk →', pad.left + cw / 2, h - 4);
+  ctx.save();
+  ctx.translate(13, pad.top + ch / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Annual Return (%)', 0, 0);
+  ctx.restore();
+
+  // Quadrant shading
+  const midX = sx(2), midY = sy(8);
+  ctx.fillStyle = 'rgba(45,106,79,0.04)';
+  ctx.fillRect(pad.left, pad.top, midX - pad.left, midY - pad.top);
+  ctx.fillStyle = 'rgba(200,168,75,0.04)';
+  ctx.fillRect(midX, midY, w - pad.right - midX, h - pad.bottom - midY);
+
+  // Bubbles — draw with animation via requestAnimationFrame
+  let progress = 0;
+  const animate = () => {
+    ctx.clearRect(pad.left, pad.top, cw + 1, ch + 1);
+    // Redraw grid (inside animate)
+    ctx.strokeStyle = '#e4ddd0'; ctx.lineWidth = 0.5;
+    for (let r = 5; r <= 11; r++) {
+      const y = sy(r);
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    }
+    for (let r = 1; r <= 3; r++) {
+      const x = sx(r);
+      ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); ctx.stroke();
+    }
+
+    INSTRUMENTS.forEach((inst, i) => {
+      const x = sx(inst.risk);
+      const targetY = sy(inst.ret);
+      const startY = h - pad.bottom;
+      const y = startY + (targetY - startY) * Math.min(1, progress * 1.5 - i * 0.05);
+      const radius = br(inst.horizon) * Math.min(1, progress * 2 - i * 0.1);
+      if (radius <= 0) return;
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = inst.color + 'cc';
+      ctx.fill();
+      ctx.strokeStyle = inst.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (radius > 18) {
+        ctx.fillStyle = inst.textColor;
+        ctx.font = `bold ${Math.min(10, radius * 0.55)}px DM Sans, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(inst.ret + '%', x, y + 3.5);
+      }
+    });
+
+    progress += 0.04;
+    if (progress < 1.3) requestAnimationFrame(animate);
+    else drawScatterLabels(ctx, sx, sy, br);
+  };
+  requestAnimationFrame(animate);
+
+  // Legend
+  const leg = document.getElementById('legend-scatter');
+  if (leg) leg.innerHTML = INSTRUMENTS.map(d =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${d.shortName} (${d.ret}%)</div>`
+  ).join('');
+}
+
+function drawScatterLabels(ctx, sx, sy, br) {
+  INSTRUMENTS.forEach(inst => {
+    const x = sx(inst.risk);
+    const y = sy(inst.ret);
+    const radius = br(inst.horizon);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(inst.shortName, x, y - radius - 5);
+  });
+}
+
+// ── BAR CHART: Returns ───────────────────────────────────────────────
+function drawBarReturn() {
+  const canvas = document.getElementById('chart-bar-return');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  const pad = { top: 30, right: 20, bottom: 90, left: 50 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const maxVal = 12;
+  const n = INSTRUMENTS.length;
+  const barW = Math.min(52, (cw / n) * 0.65);
+  const gap = cw / n;
+
+  // Grid lines
+  [0,2,4,6,8,10,12].forEach(v => {
+    const y = pad.top + ch - (v / maxVal) * ch;
+    ctx.strokeStyle = '#e4ddd0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#8a8a8a'; ctx.font = '10px DM Sans, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(v + '%', pad.left - 8, y + 3.5);
+  });
+
+  // Animate bars
+  let prog = 0;
+  const animate = () => {
+    ctx.clearRect(pad.left, pad.top, cw + 5, ch + 5);
+    [0,2,4,6,8,10,12].forEach(v => {
+      const y = pad.top + ch - (v / maxVal) * ch;
+      ctx.strokeStyle = '#e4ddd0'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    });
+
+    INSTRUMENTS.forEach((inst, i) => {
+      const fullH = (inst.ret / maxVal) * ch;
+      const animH = fullH * Math.min(1, prog - i * 0.06);
+      if (animH <= 0) return;
+      const x = pad.left + gap * i + (gap - barW) / 2;
+      const y = pad.top + ch - animH;
+
+      roundRect(ctx, x, y, barW, animH, 5);
+      ctx.fillStyle = inst.color;
+      ctx.fill();
+
+      // Return label on top
+      if (animH > 20) {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = 'bold 11px DM Sans, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(inst.ret + '%', x + barW / 2, y - 6);
+      }
+    });
+
+    prog += 0.05;
+    if (prog < 1.5) requestAnimationFrame(animate);
+    else {
+      // X labels after animation
+      INSTRUMENTS.forEach((inst, i) => {
+        const x = pad.left + gap * i + gap / 2;
+        ctx.fillStyle = '#4a4a4a';
+        ctx.font = '10px DM Sans, sans-serif';
+        ctx.textAlign = 'center';
+        const words = inst.shortName.split(' ');
+        words.forEach((w, wi) => ctx.fillText(w, x, pad.top + ch + 16 + wi * 13));
+      });
+    }
+  };
+  requestAnimationFrame(animate);
+
+  const leg = document.getElementById('legend-bar-return');
+  if (leg) leg.innerHTML = INSTRUMENTS.map(d =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${d.shortName}</div>`
+  ).join('');
+}
+
+// ── BAR CHART: Risk ──────────────────────────────────────────────────
+function drawBarRisk() {
+  const canvas = document.getElementById('chart-bar-risk');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  const pad = { top: 30, right: 20, bottom: 90, left: 50 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const maxVal = 5;
+  const n = INSTRUMENTS.length;
+  const barW = Math.min(52, (cw / n) * 0.65);
+  const gap = cw / n;
+
+  const riskColors = { 1:'#2d6a4f', 2:'#c8a84b', 3:'#92480c', 4:'#8b2020', 5:'#5c0000' };
+
+  [0,1,2,3,4,5].forEach(v => {
+    const y = pad.top + ch - (v / maxVal) * ch;
+    ctx.strokeStyle = '#e4ddd0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    if (v > 0) {
+      ctx.fillStyle = '#8a8a8a'; ctx.font = '10px DM Sans, sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(RISK_LABELS[v], pad.left - 8, y + 3.5);
+    }
+  });
+
+  let prog = 0;
+  const animate = () => {
+    ctx.clearRect(pad.left, pad.top, cw + 5, ch + 5);
+    [0,1,2,3,4,5].forEach(v => {
+      const y = pad.top + ch - (v / maxVal) * ch;
+      ctx.strokeStyle = '#e4ddd0'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    });
+
+    INSTRUMENTS.forEach((inst, i) => {
+      const fullH = (inst.risk / maxVal) * ch;
+      const animH = fullH * Math.min(1, prog - i * 0.06);
+      if (animH <= 0) return;
+      const x = pad.left + gap * i + (gap - barW) / 2;
+      const y = pad.top + ch - animH;
+      const col = riskColors[inst.risk] || '#c8a84b';
+
+      roundRect(ctx, x, y, barW, animH, 5);
+      ctx.fillStyle = col;
+      ctx.fill();
+
+      if (animH > 20) {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = 'bold 11px DM Sans, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(RISK_LABELS[inst.risk], x + barW / 2, y - 6);
+      }
+    });
+
+    prog += 0.05;
+    if (prog < 1.5) requestAnimationFrame(animate);
+    else {
+      INSTRUMENTS.forEach((inst, i) => {
+        const x = pad.left + gap * i + gap / 2;
+        ctx.fillStyle = '#4a4a4a'; ctx.font = '10px DM Sans, sans-serif'; ctx.textAlign = 'center';
+        const words = inst.shortName.split(' ');
+        words.forEach((w, wi) => ctx.fillText(w, x, pad.top + ch + 16 + wi * 13));
+      });
+    }
+  };
+  requestAnimationFrame(animate);
+
+  const leg = document.getElementById('legend-bar-risk');
+  if (leg) leg.innerHTML = [1,2,3].map(r =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${riskColors[r]}"></div>${RISK_LABELS[r]}</div>`
+  ).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────
+function initCharts() {
+  drawScatter();
 }
 
 // Load with one example goal pre-filled
